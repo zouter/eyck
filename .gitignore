@@ -1,0 +1,15 @@
+.Rproj.user
+.Rhistory
+.RData
+*odp
+.ipynb_checkpoints
+*.egg-info
+__pychache__
+*.pyc
+*.ipynb
+tmp
+.pytest_cache
+.secrets
+.coverage
+dist/
+build/

@@ -1,0 +1,75 @@
+[build-system]
+requires = ["setuptools>=41", "wheel", "setuptools_scm[toml]>=6.2", "numpy"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools-git-versioning]
+enabled = true
+
+[project]
+name = "eyck"
+authors = [
+    {name = "Wouter Saelens", email = "wouter.saelens@gmail.com"},
+]
+description = "High-definition modeling of (single-cell) chromatin + transcriptomics data"
+requires-python = ">=3.8"
+keywords = ["bioinformatics", "chromatin accessibility", "transcriptomics"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "latenta",
+]
+dynamic = ["version", "readme"]
+license = {text = "MIT"}
+
+[project.urls]
+"Homepage" = "https://github.com/DeplanckeLab/ChromatinHD"
+"Bug Tracker" = "https://github.com/DeplanckeLab/ChromatinHD/issues"
+
+[tool.setuptools.dynamic]
+readme = {file = "README.md", content-type = "text/markdown"}
+
+[project.optional-dependencies]
+dev = [
+    "pre-commit",
+    "pytest",
+    "coverage",
+    "black",
+    "pylint",
+    "jupytext",
+    "mkdocs",
+    "mkdocs-material",
+    "mkdocstrings[python]",
+    "mkdocs-jupyter",
+    "mike",
+    "cairosvg",  # for mkdocs social
+    "pillow",  # for mkdocs social
+    "mkdocs-awesome-pages-plugin",
+    "setuptools_scm",
+    # "faiss-cpu",
+    "Cython",
+    "laflow",
+]
+test = [
+    "pytest",
+    "ruff",
+]
+
+[tool.setuptools_scm]
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore",
+]
+
+[tool.pylint.'MESSAGES CONTROL']
+max-line-length = 120
+disable = [
+    "too-many-arguments",
+    "not-callable",
+    "redefined-builtin",
+    "redefined-outer-name",
+]
+
+[tool.jupytext]
+formats = "ipynb,py:percent"
