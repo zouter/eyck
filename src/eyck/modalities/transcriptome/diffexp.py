@@ -7,8 +7,8 @@ def compare_two_groups(adata, grouping1, grouping2 = None):
     if grouping2 is None:
         grouping2 = ~grouping1
     adata.obs["oi"] = pd.Categorical(pp.utils.case_when(
-        oi=grouping1,
-        ref=grouping2,
+        ref=grouping1,
+        oi=grouping2,
     ))
     adata_test = adata[adata.obs["oi"].isin(["oi", "ref"])].copy()
     sc.tl.rank_genes_groups(
@@ -21,4 +21,12 @@ def compare_two_groups(adata, grouping1, grouping2 = None):
             symbol=lambda x: symbol(adata.var, x.index).values
         )
     )
+    return diffexp
+
+def compare_all_groups(adata, column):
+    diffexp = pd.DataFrame()
+    for group in adata.obs[column].cat.categories:
+        diffexp_group = compare_two_groups(adata, adata.obs[column] != group)
+        diffexp_group["group"] = group
+        diffexp = pd.concat([diffexp, diffexp_group])
     return diffexp

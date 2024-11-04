@@ -41,6 +41,7 @@ def plot_embedding(
     annotations = None,
     show_norm = True,
     size = 5,
+    title = None,
 ):
     """
     Plot cell-based features on the UMAP of the transcriptome.
@@ -358,11 +359,14 @@ def plot_embedding(
         current_ax.set_xticks([])
         current_ax.set_yticks([])
 
-        title = label
+        if title is None:
+            current_title = label
+        else:
+            current_title = title
         if feature in annotations:
-            title = label + "\n" + annotations[feature]
+            current_title = label + "\n" + annotations[feature]
 
-        current_ax.set_title(title, fontsize = 10)
+        current_ax.set_title(current_title, fontsize = 10)
 
         if (version == "category"):
             texts = []
@@ -500,6 +504,7 @@ def plot_umap_categorized(
             color=color,
             panel_size=panel_size,
             ax = ax,
+            title = category,
             **kwargs
         )
     return fig

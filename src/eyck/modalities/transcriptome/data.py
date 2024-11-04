@@ -180,13 +180,21 @@ class Transcriptome(Flow):
             path=path,
             adata=adata,
         )
-
-    def get_X(self, gene_ids):
+    
+    def get_X(self, gene_ids, layer=None):
         """
         Get the counts for a given set of genes.
         """
-        gene_ixs = self.var.index.get_indexer(gene_ids)
-        value = self.X[:, gene_ixs]
+
+        if isinstance(gene_ids, str):
+            gene_ixs = self.var.index.get_loc(gene_ids)
+        else:
+            gene_ixs = self.var.index.get_indexer(gene_ids)
+
+        if layer is None:
+            value = self.X[:, gene_ixs]
+        else:
+            value = self.layers[layer][:, gene_ixs]
 
         if sparse.is_scipysparse(value):
             value = np.array(value.todense())
