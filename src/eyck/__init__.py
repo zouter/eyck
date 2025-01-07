@@ -12,7 +12,7 @@ from . import flow
 from . import modalities
 m = modalities
 
-from . import encoder
+# from . import encoder
 from . import processes
 
 __all__ = [
@@ -26,7 +26,6 @@ __all__ = [
     "utils",
     "flow",
     "modalities",
-    "encoder",
     "processes",
     "m"
 ]

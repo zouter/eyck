@@ -7,8 +7,6 @@ from typing import Union
 
 from eyck.flow import Flow, Stored, StoredDict, TSV
 from eyck.flow.memorymap import Memorymaps
-from latenta import sparse
-import latenta as la
 from typing import TYPE_CHECKING
 import eyck
 import matplotlib as mpl
@@ -196,6 +194,7 @@ class Transcriptome(Flow):
         else:
             value = self.layers[layer][:, gene_ixs]
 
+        from latenta import sparse
         if sparse.is_scipysparse(value):
             value = np.array(value.todense())
             if isinstance(gene_ids, str):
@@ -203,12 +202,14 @@ class Transcriptome(Flow):
         return value
 
     def create_definition(self):
+        import latenta as la
         transcriptome_definition = la.Definition(
             [la.Dim(self.obs.index), la.Dim(self.var.index)]
         )
         return transcriptome_definition
 
     def create_loader(self):
+        import latenta as la
         loader = la.variables.loaders.CSRMemorymapLoader(
             value=self.layers["counts"], original_definition=self.create_definition()
         )

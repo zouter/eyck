@@ -17,7 +17,6 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 dependencies = [
-    "latenta",
 ]
 dynamic = ["version", "readme"]
 license = {text = "MIT"}
