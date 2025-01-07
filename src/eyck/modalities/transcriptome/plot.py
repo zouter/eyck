@@ -40,8 +40,10 @@ def plot_embedding(
     ncol = 4,
     annotations = None,
     show_norm = True,
-    size = 5,
+    size = None,
     title = None,
+    legend = "on data",
+    rasterized = False,
 ):
     """
     Plot cell-based features on the UMAP of the transcriptome.
@@ -71,6 +73,8 @@ def plot_embedding(
         The axis to plot on.
     norms
         The normalization to use. If None, the default normalization will be used.
+    legend
+        Where to put the legend in case of categorical features. Can be "on data" or "on panel" or False/None.
     """
     if isinstance(transcriptome, sc.AnnData):
         transcriptome = Transcriptome.from_adata(adata=transcriptome)
@@ -247,7 +251,7 @@ def plot_embedding(
                     alpha_range=[200, 255],
                 )
             else:
-                current_ax.scatter(
+                scatter = current_ax.scatter(
                     plotdata["x"],
                     plotdata["y"],
                     c=palette[plotdata["z"]],
@@ -255,6 +259,8 @@ def plot_embedding(
                     linewidths=0,
                     clip_on = False,
                 )
+                if rasterized:
+                    scatter.set_rasterized(True)
                 
 
         elif version == "continuous":
@@ -323,7 +329,7 @@ def plot_embedding(
                 )
             else:
                 plotdata = plotdata.sort_values("z")
-                current_ax.scatter(
+                scatter = current_ax.scatter(
                     plotdata["x"],
                     plotdata["y"],
                     c=plotdata["z"].values,
@@ -333,22 +339,50 @@ def plot_embedding(
                     linewidths=0,
                     clip_on = False,
                 )
+                
+                if rasterized:
+                    scatter.set_rasterized(True)
                     
         elif version == "bool":
-            dsshow(
-                plotdata,
-                ds.Point("x", "y"),
-                ds.mean("z"),
-                cmap=["grey", colors[feature]],
-                norm=mpl.colors.Normalize(vmin=0, vmax=1),
-                aspect="equal",
-                ax=current_ax,
-                plot_width=int(panel_width * 100),
-                plot_height=int(panel_height * 100),
-                height_scale=scale,
-                width_scale=scale,
-                alpha_range=[200, 255],
-            )
+            if do_datashader:
+                dsshow(
+                    plotdata,
+                    ds.Point("x", "y"),
+                    ds.mean("z"),
+                    cmap=["grey", colors[feature]],
+                    norm=mpl.colors.Normalize(vmin=0, vmax=1),
+                    aspect="equal",
+                    ax=current_ax,
+                    plot_width=int(panel_width * 100),
+                    plot_height=int(panel_height * 100),
+                    height_scale=scale,
+                    width_scale=scale,
+                    alpha_range=[200, 255],
+                )
+            else:
+                plotdata = plotdata.sort_values("z")
+                plotdata_1 = plotdata[plotdata["z"] == 1]
+                plotdata_0 = plotdata[plotdata["z"] == 0]
+                scatter = current_ax.scatter(
+                    plotdata_0["x"],
+                    plotdata_0["y"],
+                    c="grey",
+                    s=s,
+                    linewidths=0,
+                    clip_on = False,
+                )
+                if rasterized:
+                    scatter.set_rasterized(True)
+                scatter = current_ax.scatter(
+                    plotdata_1["x"],
+                    plotdata_1["y"],
+                    c=colors[feature],
+                    s=s,
+                    linewidths=0,
+                    clip_on = False,
+                )
+                if rasterized:
+                    scatter.set_rasterized(True)
 
         current_ax.set_xlim(plotdata["x"].min(), plotdata["x"].max())
         current_ax.set_ylim(plotdata["y"].min(), plotdata["y"].max())
@@ -362,50 +396,65 @@ def plot_embedding(
         if title is None:
             current_title = label
         else:
-            current_title = title
+            if isinstance(title, str):
+                current_title = title
+            elif isinstance(title, dict):
+                current_title = title.get(feature, label)
+            # check if function
+            elif callable(title):
+                current_title = title(feature)
+            else:
+                raise ValueError("title must be a string or a dictionary")
         if feature in annotations:
             current_title = label + "\n" + annotations[feature]
 
         current_ax.set_title(current_title, fontsize = 10)
 
         if (version == "category"):
-            texts = []
-            plotdata_grouped = plotdata.groupby("value", observed=True)[
-                ["x", "y"]
-            ].median()
-            for i, row in plotdata_grouped.iterrows():
-                text = current_ax.text(row["x"], row["y"], i, fontsize=8, color=palette[i], fontweight="bold")
-                text.set_path_effects(
-                    [
-                        mpl.patheffects.Stroke(linewidth=3, foreground="#FFFFFFAA"),
-                        mpl.patheffects.Stroke(linewidth=1, foreground="#333333"),
-                        mpl.patheffects.Normal(),
-                    ]
-                )
-                texts.append(text)
+            if legend == "on data":
+                texts = []
+                plotdata_grouped = plotdata.groupby("value", observed=True)[
+                    ["x", "y"]
+                ].median()
+                for i, row in plotdata_grouped.iterrows():
+                    text = current_ax.text(row["x"], row["y"], i, fontsize=8, color=palette[i], fontweight="bold")
+                    text.set_path_effects(
+                        [
+                            mpl.patheffects.Stroke(linewidth=3, foreground="#FFFFFFAA"),
+                            mpl.patheffects.Stroke(linewidth=1, foreground="#333333"),
+                            mpl.patheffects.Normal(),
+                        ]
+                    )
+                    texts.append(text)
 
-            try:
-                import adjustText
+                try:
+                    import adjustText
 
-                adjustText.adjust_text(
-                    texts, arrowprops=dict(arrowstyle="->", color="black"), ax=current_ax
-                )
+                    adjustText.adjust_text(
+                        texts, arrowprops=dict(arrowstyle="->", color="black"), ax=current_ax
+                    )
 
-                # fig.plot_hooks.append(
-                #     lambda:
-                # )
-            except ImportError:
-                pass
+                    # fig.plot_hooks.append(
+                    #     lambda:
+                    # )
+                except ImportError:
+                    pass
 
         if version == "continuous" and show_norm:
             if (norm.vmin is not None) and (norm.vmax is not None):
-                current_ax.text(
+                text = current_ax.text(
                     0.0,
                     0.0,
                     f"[{norm.vmin:.1f}, {norm.vmax:.1f}]",
                     fontsize=6,
                     color="grey",
                     transform=current_ax.transAxes,
+                )
+                text.set_path_effects(
+                    [
+                        mpl.patheffects.Stroke(linewidth=3, foreground="#FFFFFF"),
+                        mpl.patheffects.Normal(),
+                    ]
                 )
 
     return fig
@@ -461,6 +510,8 @@ def plot_umap_categories(
     colors="red",
     fig=None,
     grid=None,
+    labels = None,
+    **kwargs,
 ) -> polyptich.grid.Figure:
     if grid is None:
         fig = polyptich.grid.Figure(polyptich.grid.Wrap())
@@ -469,12 +520,18 @@ def plot_umap_categories(
         transcriptome.obs[feature + "_" + category] = (
             transcriptome.obs[feature] == category
         )
+        if labels is None:
+            title = category
+        else:
+            title = labels[category]
         plot_umap(
             transcriptome=transcriptome,
             color=[feature + "_" + category],
             panel_size=panel_size,
             colors=colors,
             grid=grid,
+            title = title,
+            **kwargs
         )
     return fig
 
@@ -508,3 +565,21 @@ def plot_umap_categorized(
             **kwargs
         )
     return fig
+
+
+
+
+def create_continuous_colorbar(ax, norm = mpl.colors.Normalize(0, 1), cmap = None):
+    if cmap is None:
+        cmap = mpl.cm.magma
+    mappable = mpl.cm.ScalarMappable(
+        norm=norm,
+        cmap=cmap,
+    )
+    import matplotlib.pyplot as plt
+    colorbar = plt.colorbar(
+        mappable, cax=ax, orientation="vertical", extend="max"
+    )
+    colorbar.set_label("Expression")
+    colorbar.set_ticks([0, 1])
+    colorbar.set_ticklabels(["0", "Q95"])
