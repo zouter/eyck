@@ -84,7 +84,7 @@ def plot_embedding(
 
     if ax is None:
         if grid is None:
-            fig = polyptich.grid.Figure(polyptich.grid.Wrap(padding_width = 0.1, ncol = ncol, padding_height = 0.15))
+            fig = polyptich.grid.Figure(polyptich.grid.Wrap(padding_width = 0.1, ncol = ncol, padding_height = 0.3))
 
             grid = fig.main
         else:
@@ -459,7 +459,7 @@ def plot_embedding(
 
         # add legend optionally
         if version == "category" and legend == "under panel":
-            height = np.ceil(len(palette) / 2) * 0.2
+            height = np.ceil(len(palette) / 2) * 0.15
             legend_ax = polyptich.grid.Panel((panel_width, height))
             legend_ax.set_xlim(0, 1)
             legend_ax.set_ylim(0, 1)

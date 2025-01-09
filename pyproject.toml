@@ -19,6 +19,7 @@ classifiers = [
 dependencies = [
     "datashader",
     "pathlibfs",
+    "polyptich>=0.0.17",
 ]
 dynamic = ["version", "readme"]
 license = {text = "MIT"}
