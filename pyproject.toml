@@ -10,13 +10,15 @@ name = "eyck"
 authors = [
     {name = "Wouter Saelens", email = "wouter.saelens@gmail.com"},
 ]
-description = "High-definition modeling of (single-cell) chromatin + transcriptomics data"
+description = "Multi-omics data integration"
 requires-python = ">=3.8"
 keywords = ["bioinformatics", "chromatin accessibility", "transcriptomics"]
 classifiers = [
     "Programming Language :: Python :: 3",
 ]
 dependencies = [
+    "datashader",
+    "pathlibfs",
 ]
 dynamic = ["version", "readme"]
 license = {text = "MIT"}

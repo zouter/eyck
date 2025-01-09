@@ -74,7 +74,7 @@ def plot_embedding(
     norms
         The normalization to use. If None, the default normalization will be used.
     legend
-        Where to put the legend in case of categorical features. Can be "on data" or "on panel" or False/None.
+        Where to put the legend in case of categorical features. Can be "on data" or "under panel" or False/None.
     """
     if isinstance(transcriptome, sc.AnnData):
         transcriptome = Transcriptome.from_adata(adata=transcriptome)
@@ -204,7 +204,7 @@ def plot_embedding(
             norms[feature] = (0, "q.98")
 
         if ax is None:
-            current_ax = grid.add(polyptich.grid.Panel((panel_width, panel_height)))
+            current_ax = polyptich.grid.Panel((panel_width, panel_height))
         else:
             current_ax = ax
         if size is None:
@@ -456,6 +456,41 @@ def plot_embedding(
                         mpl.patheffects.Normal(),
                     ]
                 )
+
+        # add legend optionally
+        if version == "category" and legend == "under panel":
+            height = np.ceil(len(palette) / 2) * 0.2
+            legend_ax = polyptich.grid.Panel((panel_width, height))
+            legend_ax.set_xlim(0, 1)
+            legend_ax.set_ylim(0, 1)
+
+            handles = []
+            for i, (category, color) in enumerate(palette.items()):
+                handles.append(
+                    mpl.patches.Circle(
+                        (0, 0),
+                        facecolor=color,
+                        edgecolor=None,
+                        label=category,
+                    )
+                )
+            legend_ax.legend(
+                handles=handles,
+                loc="upper center",
+                ncol=2,
+                fontsize=6,
+                frameon=False,
+            )
+            legend_ax.axis("off")
+
+            current_ax = polyptich.grid.Grid([[current_ax], [legend_ax]], padding_width = 0, padding_height = 0, margin_top = 0, margin_bottom=0)
+
+                
+
+
+
+        if ax is None:
+            grid.add(current_ax)
 
     return fig
 
