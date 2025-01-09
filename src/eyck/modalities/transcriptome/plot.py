@@ -84,7 +84,7 @@ def plot_embedding(
 
     if ax is None:
         if grid is None:
-            fig = polyptich.grid.Figure(polyptich.grid.Wrap(padding_width = 0.1, ncol = ncol))
+            fig = polyptich.grid.Figure(polyptich.grid.Wrap(padding_width = 0.1, ncol = ncol, padding_height = 0.15))
 
             grid = fig.main
         else:
