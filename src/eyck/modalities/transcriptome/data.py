@@ -10,9 +10,17 @@ from eyck.flow.memorymap import Memorymaps
 from typing import TYPE_CHECKING
 import eyck
 import matplotlib as mpl
+import scipy
 
 if TYPE_CHECKING:
     import scanpy as sc
+
+
+def is_scipysparse(value):
+    import scipy
+    return isinstance(value, scipy.sparse.spmatrix)
+
+
 
 
 def symbol(var, gene_id, column="symbol"):
@@ -32,7 +40,7 @@ def gene_id(var, symbol, column="symbol", optional=False, found=False):
     assert all(pd.Series(symbol).isin(var[column])), set(
         pd.Series(symbol)[~pd.Series(symbol).isin(var[column])]
     )
-    return var.reset_index("gene").set_index(column).loc[symbol]["gene"]
+    return var.reset_index("gene").groupby(column, observed = False).first().loc[symbol]["gene"]
 
 
 def get_diffexp(adata, key = "rank_genes_groups", groups = None):
@@ -105,6 +113,9 @@ class Transcriptome(Flow):
         transcriptome.adata = adata
 
         for k, v in adata.layers.items():
+            if is_scipysparse(v):
+                if not isinstance(v, scipy.sparse._csr.csr_matrix):
+                    v = v.tocsr()
             transcriptome.layers[k] = v
         v = adata.X
         transcriptome.layers["X"] = v
@@ -194,8 +205,7 @@ class Transcriptome(Flow):
         else:
             value = self.layers[layer][:, gene_ixs]
 
-        from latenta import sparse
-        if sparse.is_scipysparse(value):
+        if is_scipysparse(value):
             value = np.array(value.todense())
             if isinstance(gene_ids, str):
                 value = value[:, 0]

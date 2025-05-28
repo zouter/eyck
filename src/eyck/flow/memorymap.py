@@ -5,6 +5,7 @@ import numpy as np
 import shutil
 import pickle
 import scipy
+import scipy.sparse
 
 from .objects import Obj
 
@@ -511,8 +512,39 @@ class CSRMemorymapReader:
                 (self.data, self.indices, self.indptr), shape=self.shape
             ).todense())
         elif isinstance(x, tuple):
-            print(x)
-            raise NotImplementedError()
+            if len(x) == 2:
+                if isinstance(x[0], slice) and isinstance(x[1], slice):
+                    return np.array(scipy.sparse.csr_matrix(
+                        (self.data, self.indices, self.indptr), shape=self.shape
+                    )[x].todense())
+                elif isinstance(x[0], slice) and isinstance(x[1], int):
+                    indptr_start = self.indptr[x[0]]
+                    indptr_end = self.indptr[x[0] + 1]
+                    indices_row = np.repeat(np.arange(len(x[0])), indptr_end - indptr_start)
+                    indices_col = self.indices[indptr_start:indptr_end]
+                    data = self.data[indptr_start:indptr_end]
+
+                    y = np.zeros([len(x[0]), self.shape[1]], dtype=self.data.dtype)
+                    y[indices_row, indices_col] = data
+
+                    return y[:, x[1]]
+                elif isinstance(x[0], int) and isinstance(x[1], slice):
+                    indptr_start = self.indptr[x[0]]
+                    indptr_end = self.indptr[x[0] + 1]
+                    indices_row = np.repeat(np.arange(len(x[0])), indptr_end - indptr_start)
+                    indices_col = self.indices[indptr_start:indptr_end]
+                    data = self.data[indptr_start:indptr_end]
+
+                    y = np.zeros([1, self.shape[1]], dtype=self.data.dtype)
+                    y[0, indices_col] = data
+
+                    return y[0, x[1]]
+                elif isinstance(x[0], slice) and isinstance(x[1], np.ndarray):
+                    return np.array(scipy.sparse.csr_matrix(
+                        (self.data, self.indices, self.indptr), shape=self.shape
+                    )[x].todense())
+                else:
+                    raise NotImplementedError()
         elif isinstance(x, np.ndarray):
             indptr_start = self.indptr[x]
             indptr_end = self.indptr[x + 1]
@@ -627,6 +659,8 @@ class Memorymaps(Obj):
                 os.remove(path)
         if isinstance(value, scipy.sparse._csr.csr_matrix):
             version = "csr"
+        elif isinstance(value, scipy.sparse._csc.csc_matrix):
+            raise NotImplementedError("Please convert to a csr matrix")
         else:
             version = "dense"
         self.__get__(obj, version=version)[:] = value
