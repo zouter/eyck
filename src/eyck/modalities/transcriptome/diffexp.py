@@ -47,11 +47,19 @@ def compare_two_groups(adata, grouping1, grouping2=None, **kwargs):
     cellsGroup1 = adata_test.obs.loc[grouping1].index
     cellsGroup2 = adata_test.obs.loc[grouping2].index
     genesOI = diffexp.index.tolist()
+
+    X1 = adata_test[cellsGroup1, genesOI].X[:10000]
+    if not isinstance(X1, np.ndarray):
+        X1 = X1.todense()
+    X2 = adata_test[cellsGroup2, genesOI].X[:10000]
+    if not isinstance(X2, np.ndarray):
+        X2 = X2.todense()
+
     diffexp["pct.1"] = np.array(
-        np.mean(adata_test[cellsGroup1, genesOI].X[:10000].todense() > 0, axis=0)
+        np.mean(X1 > 0, axis=0)
     )[0]
     diffexp["pct.2"] = np.array(
-        np.mean(adata_test[cellsGroup2, genesOI].X[:10000].todense() > 0, axis=0)
+        np.mean(X2 > 0, axis=0)
     )[0]
     diffexp["scoreLM"] = np.where(
         diffexp["lfc"] >= 0,

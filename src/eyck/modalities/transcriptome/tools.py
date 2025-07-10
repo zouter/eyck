@@ -10,6 +10,20 @@ def paircorr(x, y, dim=-2):
     return cor
 
 def refcor(x, y, dim=0, eps=0.000001, n=1000):
+    """
+    Correlate two matrices x and y, where y is a matrix of features and x can be a single vector or a matrix.
+    The function computes the correlation between each feature in y and the vector x.
+    If x is a single vector, it returns a Series with the correlation values for each feature in y.
+    If x is a matrix, it returns a matrix of correlation values.
+    Parameters:
+    x : np.ndarray
+        A single vector or a matrix of shape (n_samples, n_features).
+    y : np.ndarray
+        A matrix of features of shape (n_samples, n_features).
+    dim : int, optional
+        The dimension along which to compute the correlation. Default is 0.
+    
+    """
     single = False
     if x.ndim == 1:
         x = x[:, None]
@@ -22,6 +36,40 @@ def refcor(x, y, dim=0, eps=0.000001, n=1000):
     if single:
         return cor[0]
     return cor
+
+def refjaccard(x, y, dim=0, n=1000):
+    """
+    Compute the Jaccard similarity between two matrices x and y, where y is a matrix of features and x can be a single vector or a matrix.
+    The function computes the Jaccard similarity between each feature in y and the vector x.
+    If x is a single vector, it returns a Series with the Jaccard similarity values for each feature in y.
+    If x is a matrix, it returns a matrix of Jaccard similarity values.
+    Parameters:
+    x : np.ndarray
+        A single vector or a matrix of shape (n_samples, n_features).
+    y : np.ndarray
+        A matrix of features of shape (n_samples, n_features).
+    dim : int, optional
+        The dimension along which to compute the Jaccard similarity. Default is 0.
+    
+    """
+    single = False
+    if x.ndim == 1:
+        x = x[:, None]
+        single = True
+    x = x[:n]
+    y = y[:n]
+    a = (x > 0).astype(int)
+    b = (y > 0).astype(int)
+    
+    numerator = (a[:, :, None] & b[:, None, :]).sum(0)
+    denominator = (a[:, :, None] | b[:, None, :]).sum(0)
+    
+    jaccard_similarity = numerator / denominator
+    
+    if single:
+        return jaccard_similarity[0]
+    
+    return jaccard_similarity
 
 
 def correlate_single_gene(adata, gene_id, max_n = 2000):
