@@ -580,12 +580,16 @@ def plot_embedding(
             # check if function
             elif callable(title):
                 current_title = title(feature)
+            elif title is False:
+                current_title = False
             else:
                 raise ValueError("title must be a string or a dictionary")
         if feature in annotations:
             current_title = label + "\n" + annotations[feature]
 
-        if title_position == "top":
+        if current_title is False:
+            pass
+        elif title_position == "top":
             current_ax.set_title(current_title, fontsize=10)
         else:
             if title_position == "on data":
@@ -733,7 +737,7 @@ def plot_umap(
     show_norm=False,
     title=None,
     title_position = "top",
-    legend="on data",
+    legend: str ="on data",
     **kwargs,
 ) -> polyptich.grid.Figure:
     return plot_embedding(
@@ -832,6 +836,7 @@ def plot_umap_categorized(
     transcriptome: Transcriptome,
     feature: str,
     color: str,
+    categories: List[str] = None,
     panel_size: float = 1.5,
     cmap="magma",
     cmaps=None,
@@ -853,7 +858,7 @@ def plot_umap_categorized(
     background_cells_color = "#DDDDDD",
 ):
     """
-    Plot a feature (`color`) on several panels, one for each category of a categorical feature (`feature`).
+    Plot something (`color`) on several panels, one for each category of a categorical feature (`feature`).
 
     Parameters
     ----------
@@ -861,6 +866,10 @@ def plot_umap_categorized(
         The transcriptome to plot. Can be a Transcriptome object or an AnnData object.
     color
         The feature to plot.
+    feature
+        The categorical feature to split the panels by.
+    categories
+        The categories of the feature to plot. If None, all categories will be plotted.
     panel_size
         The size of the panel.
     cmap
@@ -911,9 +920,11 @@ def plot_umap_categorized(
     if norms is None:
         norms = (0, "q.95")
     elif isinstance(norms, tuple):
-        norms = {feature: norms for feature in color}
+        norms = {color: norms}
     elif isinstance(norms, str):
-        norms = {feature: norms for feature in color}
+        norms = {color: norms}
+    elif not isinstance(norms, dict):
+        norms = {color: norms}
     if transforms is None:
         transforms = None
     if cmaps is None:
@@ -994,45 +1005,48 @@ def plot_umap_categorized(
         cmap = mpl.colormaps[cmap]
 
     # get norm
-    if feature not in norms:
+    if color not in norms:
         norm = mpl.colors.Normalize()
-    elif norms[feature] == "minmax":
+    elif norms[color] == "minmax":
         norm = mpl.colors.Normalize(
             vmin=plotdata["z"].min(), vmax=plotdata["z"].max()
         )
-    elif norms[feature] == "0max":
+    elif norms[color] == "0max":
         norm = mpl.colors.Normalize(vmin=0, vmax=plotdata["z"].max())
-    elif isinstance(norms[feature], str) and "q" in norms[feature]:
-        qmin, qmax = norms[feature].split("q")[0]
-    elif isinstance(norms[feature], tuple):
-        if norms[feature][0] == "0":
+    elif isinstance(norms[color], str) and "q" in norms[color]:
+        qmin, qmax = norms[color].split("q")[0]
+    elif isinstance(norms[color], tuple):
+        if norms[color][0] == "0":
             zmin = 0
-        elif isinstance(norms[feature][0], (int, float)):
-            zmin = norms[feature][0]
-        elif norms[feature][0].startswith("q"):
-            zmin = np.quantile(plotdata["z"], float(norms[feature][0][1:]))
-        elif norms[feature][0] == "min":
+        elif isinstance(norms[color][0], (int, float)):
+            zmin = norms[color][0]
+        elif norms[color][0].startswith("q"):
+            zmin = np.quantile(plotdata["z"], float(norms[color][0][1:]))
+        elif norms[color][0] == "min":
             zmin = plotdata["z"].min()
         else:
-            zmin = norms[feature][0]
+            zmin = norms[color][0]
 
-        if norms[feature][1] == "0":
+        if norms[color][1] == "0":
             zmax = 0
-        elif isinstance(norms[feature][1], (int, float)):
-            zmax = norms[feature][1]
-        elif norms[feature][1].startswith("q"):
-            zmax = np.quantile(plotdata["z"], float(norms[feature][1][1:]))
-        elif norms[feature][1] == "max":
+        elif isinstance(norms[color][1], (int, float)):
+            zmax = norms[color][1]
+        elif norms[color][1].startswith("q"):
+            zmax = np.quantile(plotdata["z"], float(norms[color][1][1:]))
+        elif norms[color][1] == "max":
             zmax = plotdata["z"].max()
         else:
-            zmax = norms[feature][1]
+            zmax = norms[color][1]
         norm = mpl.colors.Normalize(zmin, zmax + 1e-8)
-    elif isinstance(norms[feature], mpl.colors.Normalize):
-        norm = norms[feature]
+    elif isinstance(norms[color], mpl.colors.Normalize):
+        norm = norms[color]
     else:
-        raise ValueError(f"Unknown normalization {norms[feature]}")
+        raise ValueError(f"Unknown normalization {norms[color]}")
 
     for feature, plotdata_feature in plotdata.groupby("feature", observed=True):
+        if categories is not None:
+            if feature not in categories:
+                continue
         current_ax = polyptich.grid.Panel((panel_width, panel_height))
 
         if sort:
@@ -1078,6 +1092,8 @@ def plot_umap_categorized(
             # check if function
             elif callable(title):
                 current_title = title(feature)
+            elif title is False:
+                current_title = ""
             else:
                 raise ValueError("title must be a string or a dictionary")
 

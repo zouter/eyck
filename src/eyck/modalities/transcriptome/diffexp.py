@@ -7,7 +7,6 @@ from eyck.modalities.transcriptome import symbol
 
 
 def compare_two_groups(adata, grouping1, grouping2=None, **kwargs):
-    
     if grouping2 is None:
         grouping2 = ~grouping1
 
@@ -31,6 +30,7 @@ def compare_two_groups(adata, grouping1, grouping2=None, **kwargs):
     diffexp = sc.get.rank_genes_groups_df(adata_test, "oi", key="27vs6").set_index(
         "names"
     )
+    diffexp = diffexp.loc[adata_test.var.index]
 
     lfc = pd.Series(
         -np.array(adata_test.X[adata_test.obs["oi"].values == "ref"].mean(0)).flatten()
@@ -43,15 +43,16 @@ def compare_two_groups(adata, grouping1, grouping2=None, **kwargs):
     diffexp = diffexp.assign(
         lfc=lfc,
     )
+
     ##Get pct
     cellsGroup1 = adata_test.obs.loc[grouping1].index
     cellsGroup2 = adata_test.obs.loc[grouping2].index
-    genesOI = diffexp.index.tolist()
+    # genesOI = diffexp.index
 
-    X1 = adata_test[cellsGroup1, genesOI].X[:10000]
+    X1 = adata_test[cellsGroup1].X[:10000]
     if not isinstance(X1, np.ndarray):
         X1 = X1.todense()
-    X2 = adata_test[cellsGroup2, genesOI].X[:10000]
+    X2 = adata_test[cellsGroup2].X[:10000]
     if not isinstance(X2, np.ndarray):
         X2 = X2.todense()
 
