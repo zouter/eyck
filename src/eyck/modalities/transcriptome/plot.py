@@ -358,7 +358,7 @@ def plot_embedding(
                 plotdata["value"] = plotdata["z"]
                 plotdata["z"] = plotdata["z"]
                 version = "category"
-            elif plotdata["z"].dtype == "object":
+            elif plotdata["z"].dtype in ["object", "str"]:
                 plotdata["value"] = plotdata["z"]
                 plotdata["z"] = plotdata["z"].astype("category")
                 version = "category"
@@ -973,11 +973,12 @@ def plot_umap_categorized(
     elif color in transcriptome.obs.columns:
         plotdata["z"] = transcriptome.obs.loc[cells_oi, color].values
 
+        print(plotdata["z"].dtype)
         if plotdata["z"].dtype == "category":
             plotdata["value"] = plotdata["z"]
             plotdata["z"] = plotdata["z"]
             version = "category"
-        elif plotdata["z"].dtype == "object":
+        elif plotdata["z"].dtype in ["object", "str"]:
             plotdata["value"] = plotdata["z"]
             plotdata["z"] = plotdata["z"].astype("category")
             version = "category"

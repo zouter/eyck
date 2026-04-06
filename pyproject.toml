@@ -50,7 +50,6 @@ dev = [
     "setuptools_scm",
     # "faiss-cpu",
     "Cython",
-    "laflow",
 ]
 test = [
     "pytest",
