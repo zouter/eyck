@@ -1,3 +1,4 @@
+# pip install setuptools_git_versioning
 python -m setuptools_git_versioning
 
 version="0.0.17"
@@ -15,7 +16,7 @@ python -m build
 git push --tags
 git push
 
-# conda install gh --channel conda-forge
+# pip install gh
 gh release create v${version} -t "v${version}" -n "v${version}" dist/eyck-${version}.tar.gz
 
 # pip install twine
