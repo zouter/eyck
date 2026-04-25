@@ -202,6 +202,10 @@ def plot_embedding(
     legend="on data",
     rasterized=False,
     sort=True,
+    active=None,
+    inactive_color="#DDDDDD",
+    inactive_size=None,
+    inactive_size_scale=0.5,
 ):
     """
     Plot cell-based features on the UMAP of the transcriptome.
@@ -239,6 +243,15 @@ def plot_embedding(
         The title of the panel. If None, the feature name will be used.
     title_position
         The position of the title. Can be "top" or "on data".
+    active
+        Column name in transcriptome.obs (or boolean array-like) indicating active cells to draw in foreground.
+        Inactive cells are drawn in the background.
+    inactive_color
+        Color for inactive (background) cells.
+    inactive_size
+        Marker size for inactive (background) cells. If None, uses size * inactive_size_scale.
+    inactive_size_scale
+        Relative marker size for inactive (background) cells when inactive_size is None.
     """
     if isinstance(transcriptome, sc.AnnData):
         transcriptome = Transcriptome.from_adata(adata=transcriptome)
@@ -268,6 +281,17 @@ def plot_embedding(
             "y": transcriptome.adata.obsm[embedding][cells_oi, 1],
         }
     )
+
+    if active is None:
+        active_mask = np.ones(len(plotdata_raw), dtype=bool)
+    elif isinstance(active, str):
+        if active not in transcriptome.obs.columns:
+            raise ValueError(f"Could not find active column {active}")
+        active_mask = transcriptome.obs.loc[cells_oi, active].astype(bool).values
+    else:
+        active_mask = np.asarray(active).astype(bool)
+        if len(active_mask) != len(plotdata_raw):
+            raise ValueError("active must be None, a column name, or a boolean array of length len(cells_oi)")
 
     if isinstance(color, str):
         color = [color]
@@ -386,10 +410,29 @@ def plot_embedding(
             s = min(5, 10000 / len(plotdata))
         else:
             s = size
+        if inactive_size is None:
+            inactive_s = s * inactive_size_scale
+        else:
+            inactive_s = inactive_size
+
+        plotdata_active = plotdata[active_mask].copy()
+        plotdata_inactive = plotdata[~active_mask].copy()
+
+        if len(plotdata_inactive) > 0:
+            scatter_bg = current_ax.scatter(
+                plotdata_inactive["x"],
+                plotdata_inactive["y"],
+                c=inactive_color,
+                s=inactive_s,
+                linewidths=0,
+                clip_on=False,
+            )
+            if rasterized:
+                scatter_bg.set_rasterized(True)
         scale = 20
 
         # check if datashader
-        if (len(plotdata) < 10000) or (datashader is False):
+        if (len(plotdata_active) < 10000) or (datashader is False):
             do_datashader = False
         else:
             do_datashader = True
@@ -415,7 +458,7 @@ def plot_embedding(
 
             if do_datashader:
                 dsshow(
-                    plotdata,
+                    plotdata_active,
                     ds.Point("x", "y"),
                     ds.count_cat("z"),
                     color_key=palette.to_dict(),
@@ -429,9 +472,9 @@ def plot_embedding(
                 )
             else:
                 scatter = current_ax.scatter(
-                    plotdata["x"],
-                    plotdata["y"],
-                    c=palette[plotdata["z"]],
+                    plotdata_active["x"],
+                    plotdata_active["y"],
+                    c=palette[plotdata_active["z"]],
                     s=s,
                     linewidths=0,
                     clip_on=False,
@@ -490,7 +533,7 @@ def plot_embedding(
             # decide datashader or not
             if do_datashader:
                 dsshow(
-                    plotdata,
+                    plotdata_active,
                     ds.Point("x", "y"),
                     ds.mean("z"),
                     cmap=cmap,
@@ -505,11 +548,11 @@ def plot_embedding(
                 )
             else:
                 if sort:
-                    plotdata = plotdata.sort_values("z")
+                    plotdata_active = plotdata_active.sort_values("z")
                 scatter = current_ax.scatter(
-                    plotdata["x"],
-                    plotdata["y"],
-                    c=plotdata["z"].values,
+                    plotdata_active["x"],
+                    plotdata_active["y"],
+                    c=plotdata_active["z"].values,
                     s=s,
                     cmap=cmap,
                     norm=norm,
@@ -523,7 +566,7 @@ def plot_embedding(
         elif version == "bool":
             if do_datashader:
                 dsshow(
-                    plotdata,
+                    plotdata_active,
                     ds.Point("x", "y"),
                     ds.mean("z"),
                     cmap=["grey", colors[feature]],
@@ -537,9 +580,9 @@ def plot_embedding(
                     alpha_range=[200, 255],
                 )
             else:
-                plotdata = plotdata.sort_values("z")
-                plotdata_1 = plotdata[plotdata["z"] == 1]
-                plotdata_0 = plotdata[plotdata["z"] == 0]
+                plotdata_active = plotdata_active.sort_values("z")
+                plotdata_1 = plotdata_active[plotdata_active["z"] == 1]
+                plotdata_0 = plotdata_active[plotdata_active["z"] == 0]
                 scatter = current_ax.scatter(
                     plotdata_0["x"],
                     plotdata_0["y"],
@@ -613,7 +656,7 @@ def plot_embedding(
                 continue
             elif legend[feature] == "on data":
                 texts = []
-                plotdata_grouped = plotdata.groupby("value", observed=True)[
+                plotdata_grouped = plotdata_active.groupby("value", observed=True)[
                     ["x", "y"]
                 ].median()
                 for i, row in plotdata_grouped.iterrows():
@@ -738,6 +781,10 @@ def plot_umap(
     title=None,
     title_position = "top",
     legend: str ="on data",
+    active=None,
+    inactive_color="#DDDDDD",
+    inactive_size=None,
+    inactive_size_scale=0.5,
     **kwargs,
 ) -> polyptich.grid.Figure:
     return plot_embedding(
@@ -763,6 +810,10 @@ def plot_umap(
         title=title,
         title_position=title_position,
         legend=legend,
+        active=active,
+        inactive_color=inactive_color,
+        inactive_size=inactive_size,
+        inactive_size_scale=inactive_size_scale,
         **kwargs,
     )
 
