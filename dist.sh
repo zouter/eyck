@@ -16,8 +16,8 @@ python -m build
 git push --tags
 git push
 
-# pip install gh
-gh release create v${version} -t "v${version}" -n "v${version}" dist/eyck-${version}.tar.gz
+# curl -sS https://webi.sh/gh | sh
+~/.local/bin/gh release create v${version} -t "v${version}" -n "v${version}" dist/eyck-${version}.tar.gz
 
 # pip install twine
 twine upload dist/eyck-${version}.tar.gz --verbose
