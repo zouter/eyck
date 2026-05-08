@@ -18,7 +18,7 @@ def compare_two_groups(adata, grouping1, grouping2=None, **kwargs):
         raise ValueError("Grouping 2 is all false")
     
     adata.obs["oi"] = pd.Categorical(
-        pp.utils.case_when(
+        pp.case_when(
             oi=grouping1,
             ref=grouping2,
         )
@@ -45,8 +45,8 @@ def compare_two_groups(adata, grouping1, grouping2=None, **kwargs):
     )
 
     ##Get pct
-    cellsGroup1 = adata_test.obs.loc[grouping1].index
-    cellsGroup2 = adata_test.obs.loc[grouping2].index
+    cellsGroup1 = adata_test.obs.loc[adata_test.obs["oi"] == "oi"].index
+    cellsGroup2 = adata_test.obs.loc[adata_test.obs["oi"] == "ref"].index
     # genesOI = diffexp.index
 
     X1 = adata_test[cellsGroup1].X[:10000]
