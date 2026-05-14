@@ -206,6 +206,7 @@ def plot_embedding(
     inactive_color="#DDDDDD",
     inactive_size=None,
     inactive_size_scale=0.5,
+    facecolor=None,
 ):
     """
     Plot cell-based features on the UMAP of the transcriptome.
@@ -612,6 +613,8 @@ def plot_embedding(
         current_ax.spines["left"].set_visible(False)
         current_ax.set_xticks([])
         current_ax.set_yticks([])
+        if facecolor is not None:
+            current_ax.set_facecolor(facecolor)
 
         if title is None:
             current_title = label
@@ -785,6 +788,7 @@ def plot_umap(
     inactive_color="#DDDDDD",
     inactive_size=None,
     inactive_size_scale=0.5,
+    facecolor=None,
     **kwargs,
 ) -> polyptich.grid.Figure:
     return plot_embedding(
@@ -814,6 +818,7 @@ def plot_umap(
         inactive_color=inactive_color,
         inactive_size=inactive_size,
         inactive_size_scale=inactive_size_scale,
+        facecolor=facecolor,
         **kwargs,
     )
 
