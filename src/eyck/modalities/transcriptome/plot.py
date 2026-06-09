@@ -8,6 +8,7 @@ import numpy as np
 from typing import List
 import datashader as ds
 from datashader.mpl_ext import dsshow
+from types import SimpleNamespace
 
 
 def get_colors(n):
@@ -176,6 +177,42 @@ def annotate_corner(ax: mpl.axes.Axes,
     return annotation
 
 
+def _cmap_with_nan_color(cmap, nan_color):
+    if isinstance(cmap, str):
+        cmap = mpl.colormaps[cmap]
+    cmap = cmap.copy()
+    cmap.set_bad(nan_color)
+    return cmap
+
+
+def _nanquantile(values, q):
+    values = np.asarray(values, dtype=float)
+    values = values[~np.isnan(values)]
+    if len(values) == 0:
+        return np.nan
+    return np.quantile(values, q)
+
+
+def _get_gene_values(adata, cells_oi, gene, layer=None):
+    matrix = adata.layers[layer] if layer is not None else adata.X
+    gene_ix = adata.var_names.get_loc(gene)
+    cells_oi = np.asarray(cells_oi)
+    values = matrix[cells_oi, gene_ix]
+    if hasattr(values, "toarray"):
+        values = values.toarray()
+    return np.asarray(values).ravel()
+
+
+def _as_transcriptome_view(transcriptome):
+    if isinstance(transcriptome, sc.AnnData):
+        return SimpleNamespace(
+            adata=transcriptome,
+            obs=transcriptome.obs,
+            var=transcriptome.var,
+        )
+    return transcriptome
+
+
 def plot_embedding(
     transcriptome: Transcriptome,
     color: List[str] = None,
@@ -207,6 +244,7 @@ def plot_embedding(
     inactive_size=None,
     inactive_size_scale=0.5,
     facecolor=None,
+    nan_color="#F2F2F2",
 ):
     """
     Plot cell-based features on the UMAP of the transcriptome.
@@ -253,9 +291,10 @@ def plot_embedding(
         Marker size for inactive (background) cells. If None, uses size * inactive_size_scale.
     inactive_size_scale
         Relative marker size for inactive (background) cells when inactive_size is None.
+    nan_color
+        Color used for NaN values in continuous plots. NaNs are excluded when determining norms.
     """
-    if isinstance(transcriptome, sc.AnnData):
-        transcriptome = Transcriptome.from_adata(adata=transcriptome)
+    transcriptome = _as_transcriptome_view(transcriptome)
 
     # if not isinstance(transcriptome, Transcriptome):
     #     raise ValueError("transcriptome must be a Transcriptome object")
@@ -339,7 +378,7 @@ def plot_embedding(
     cmap_default = cmap
 
     for feature in color:
-        plotdata = plotdata_raw.copy()
+        plotdata = plotdata_raw.copy(deep=False)
 
         # determine feature and version
         version = "continuous"
@@ -361,9 +400,7 @@ def plot_embedding(
             else:
                 raise ValueError(f"Could not find gene {feature}")
 
-            plotdata["z"] = sc.get.obs_df(
-                transcriptome.adata[cells_oi], gene, layer=layer
-            ).values
+            plotdata["z"] = _get_gene_values(transcriptome.adata, cells_oi, gene, layer=layer)
 
             if feature not in norms:
                 q99 = plotdata["z"].quantile(0.999)
@@ -416,8 +453,8 @@ def plot_embedding(
         else:
             inactive_s = inactive_size
 
-        plotdata_active = plotdata[active_mask].copy()
-        plotdata_inactive = plotdata[~active_mask].copy()
+        plotdata_active = plotdata.loc[active_mask]
+        plotdata_inactive = plotdata.loc[~active_mask]
 
         if len(plotdata_inactive) > 0:
             scatter_bg = current_ax.scatter(
@@ -489,8 +526,7 @@ def plot_embedding(
                 cmap = cmaps[feature]
             else:
                 cmap = cmap_default
-            if isinstance(cmap, str):
-                cmap = mpl.colormaps[cmap]
+            cmap = _cmap_with_nan_color(cmap, nan_color)
 
             # get norm
             if feature not in norms:
@@ -509,7 +545,7 @@ def plot_embedding(
                 elif isinstance(norms[feature][0], (int, float)):
                     zmin = norms[feature][0]
                 elif norms[feature][0].startswith("q"):
-                    zmin = np.quantile(plotdata["z"], float(norms[feature][0][1:]))
+                    zmin = _nanquantile(plotdata["z"], float(norms[feature][0][1:]))
                 elif norms[feature][0] == "min":
                     zmin = plotdata["z"].min()
                 else:
@@ -520,7 +556,7 @@ def plot_embedding(
                 elif isinstance(norms[feature][1], (int, float)):
                     zmax = norms[feature][1]
                 elif norms[feature][1].startswith("q"):
-                    zmax = np.quantile(plotdata["z"], float(norms[feature][1][1:]))
+                    zmax = _nanquantile(plotdata["z"], float(norms[feature][1][1:]))
                 elif norms[feature][1] == "max":
                     zmax = plotdata["z"].max()
                 else:
@@ -549,7 +585,7 @@ def plot_embedding(
                 )
             else:
                 if sort:
-                    plotdata_active = plotdata_active.sort_values("z")
+                    plotdata_active = plotdata_active.sort_values("z", na_position="first")
                 scatter = current_ax.scatter(
                     plotdata_active["x"],
                     plotdata_active["y"],
@@ -557,6 +593,7 @@ def plot_embedding(
                     s=s,
                     cmap=cmap,
                     norm=norm,
+                    plotnonfinite=True,
                     linewidths=0,
                     clip_on=False,
                 )
@@ -789,6 +826,7 @@ def plot_umap(
     inactive_size=None,
     inactive_size_scale=0.5,
     facecolor=None,
+    nan_color="#F2F2F2",
     **kwargs,
 ) -> polyptich.grid.Figure:
     return plot_embedding(
@@ -819,6 +857,7 @@ def plot_umap(
         inactive_size=inactive_size,
         inactive_size_scale=inactive_size_scale,
         facecolor=facecolor,
+        nan_color=nan_color,
         **kwargs,
     )
 
@@ -840,22 +879,26 @@ def plot_umap_categories(
         fig = polyptich.grid.Figure(polyptich.grid.Wrap())
         grid = fig.main
     for category in transcriptome.obs[feature].cat.categories:
-        transcriptome.obs[feature + "_" + category] = (
-            transcriptome.obs[feature] == category
-        )
+        category_feature = f"__{feature}_{category}_active"
+        while category_feature in transcriptome.obs.columns:
+            category_feature = "_" + category_feature
         if labels is None:
             title = category
         else:
             title = labels[category]
-        plot_umap(
-            transcriptome=transcriptome,
-            color=[feature + "_" + category],
-            panel_size=panel_size,
-            colors=colors,
-            grid=grid,
-            title=title,
-            **kwargs,
-        )
+        transcriptome.obs[category_feature] = (transcriptome.obs[feature] == category).values
+        try:
+            plot_umap(
+                transcriptome=transcriptome,
+                color=[category_feature],
+                panel_size=panel_size,
+                colors=colors,
+                grid=grid,
+                title=title,
+                **kwargs,
+            )
+        finally:
+            del transcriptome.obs[category_feature]
     return fig
 
 
@@ -872,13 +915,10 @@ def plot_umap_categorized(
         fig = polyptich.grid.Figure(polyptich.grid.Wrap())
         grid = fig.main
     for category in transcriptome.obs[feature].cat.categories:
-        transcriptome.obs[feature + "_" + category] = (
-            transcriptome.obs[feature] == category
-        )
         ax = grid.add(polyptich.grid.Panel((panel_size, panel_size)))
         plot_umap(
             transcriptome=transcriptome,
-            cells_oi=transcriptome.obs[feature + "_" + category],
+            cells_oi=(transcriptome.obs[feature] == category).values,
             color=color,
             panel_size=panel_size,
             ax=ax,
@@ -912,6 +952,7 @@ def plot_umap_categorized(
     rasterized=False,
     sort=True,
     background_cells_color = "#DDDDDD",
+    sort_categories = "prevalence",
 ):
     """
     Plot something (`color`) on several panels, one for each category of a categorical feature (`feature`).
@@ -945,8 +986,7 @@ def plot_umap_categorized(
     sort
         Whether to sort the cells by the feature value, putting the highest value on top.
     """
-    if isinstance(transcriptome, sc.AnnData):
-        transcriptome = Transcriptome.from_adata(adata=transcriptome)
+    transcriptome = _as_transcriptome_view(transcriptome)
 
     if ax is None:
         if grid is None:
@@ -970,6 +1010,7 @@ def plot_umap_categorized(
             "y": transcriptome.adata.obsm[embedding][cells_oi, 1],
         }
     )
+    print(1)
 
     if annotations is None:
         annotations = None
@@ -1013,9 +1054,7 @@ def plot_umap_categorized(
         else:
             raise ValueError(f"Could not find gene {color}")
 
-        plotdata["z"] = sc.get.obs_df(
-            transcriptome.adata[cells_oi], gene, layer=layer
-        ).values
+        plotdata["z"] = _get_gene_values(transcriptome.adata, cells_oi, gene, layer=layer)
 
         if color not in norms:
             q99 = plotdata["z"].quantile(0.999)
@@ -1099,6 +1138,11 @@ def plot_umap_categorized(
         norm = norms[color]
     else:
         raise ValueError(f"Unknown normalization {norms[color]}")
+
+    if sort_categories == "prevalence":
+        category_counts = plotdata["feature"].value_counts()
+        category_order = category_counts.sort_values(ascending=False).index
+        plotdata["feature"] = pd.Categorical(plotdata["feature"], categories=category_order, ordered=True)
 
     for feature, plotdata_feature in plotdata.groupby("feature", observed=True):
         if categories is not None:
